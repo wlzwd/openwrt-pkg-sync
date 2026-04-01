@@ -1,0 +1,86 @@
+name: Sync Packages
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout My Repo
+        uses: actions/checkout@v4
+
+      - name: Sync Packages
+        run: |
+          # === 终极配置区域："仓库地址 | 插件在仓库中的路径 | 本地目标文件夹名称" ===
+          # 如果插件在根目录，中间的路径填 "."
+          PKGS_CONFIG=(
+            "https://github.com/sirpdboy/luci-theme-kucat|.|luci-theme-kucat"
+            "https://github.com/sirpdboy/luci-app-kucat-config|.|luci-app-kucat-config"
+            "https://github.com/vernesong/OpenClash|luci-app-openclash|luci-app-openclash"
+            # 举一反三：同步老版本的某插件，并重命名防冲突
+            # "https://github.com/kenzok8/small|luci-app-passwall|my-passwall" 
+          )
+
+          echo "开始多仓库同步与强力提纯任务..."
+          mkdir -p /tmp/upstream
+
+          for item in "${PKGS_CONFIG[@]}"; do
+            # 解析三段式配置
+            REPO_URL=$(echo $item | cut -d'|' -f1)
+            PKG_PATH=$(echo $item | cut -d'|' -f2)
+            PKG_NAME=$(echo $item | cut -d'|' -f3)
+
+            echo "--------------------------------------------------"
+            echo "⬇️ 正在拉取: $PKG_NAME"
+
+            # 1. 浅克隆上游仓库到临时目录
+            TEMP_DIR="/tmp/upstream/$(date +%s%N)"
+            git clone --depth 1 $REPO_URL $TEMP_DIR
+
+            # 2. 清除你仓库中旧的同名文件夹，并创建全新的空文件夹
+            rm -rf ./$PKG_NAME
+            mkdir -p ./$PKG_NAME
+
+            # 3. 精准拷贝
+            if [ "$PKG_PATH" == "." ]; then
+                # 如果是根目录仓库，直接把临时目录下的所有东西扔进目标文件夹
+                cp -r $TEMP_DIR/* ./$PKG_NAME/ 2>/dev/null || true
+            else
+                # 如果是子目录，进入该子目录把里面的东西扔进目标文件夹
+                cp -r $TEMP_DIR/$PKG_PATH/* ./$PKG_NAME/ 2>/dev/null || true
+            fi
+
+            # 4. 强力“大扫除”（无论源文件有多乱，统统删掉不需要的）
+            # 删除 Git 隐藏目录、GitHub Action 目录、各种说明文档和图片夹
+            rm -rf ./$PKG_NAME/.git*
+            rm -rf ./$PKG_NAME/.github
+            rm -rf ./$PKG_NAME/README*
+            rm -rf ./$PKG_NAME/readme*
+            rm -rf ./$PKG_NAME/LICENSE*
+            rm -rf ./$PKG_NAME/doc*
+            rm -rf ./$PKG_NAME/docs*
+            rm -rf ./$PKG_NAME/assets*
+            rm -rf ./$PKG_NAME/*.png
+            rm -rf ./$PKG_NAME/*.jpg
+
+            echo "✅ 提纯完成: $PKG_NAME"
+            
+            # 删掉临时克隆的仓库，腾出空间给下一个
+            rm -rf $TEMP_DIR
+          done
+
+      - name: Commit and Push
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add .
+          if ! git diff --staged --quiet; then
+            git commit -m "Auto-sync and clean packages: $(date +'%Y-%m-%d %H:%M')"
+            git push
+            echo "🚀 所有修改已成功推送到仓库！"
+          else
+            echo "💤 所有插件均已是最新，无需更新。"
+          fi
