@@ -21,6 +21,9 @@ jobs:
             "https://github.com/sirpdboy/luci-theme-kucat|.|luci-theme-kucat"
             "https://github.com/sirpdboy/luci-app-kucat-config|.|luci-app-kucat-config"
             "https://github.com/vernesong/OpenClash|luci-app-openclash|luci-app-openclash"
+            "https://github.com/destan19/OpenAppFilter|luci-app-oaf|luci-app-oaf"
+            "https://github.com/destan19/OpenAppFilter|oaf|oaf"
+            "https://github.com/destan19/OpenAppFilter|open-app-filter|open-app-filter"
             # 举一反三：同步老版本的某插件，并重命名防冲突
             # "https://github.com/kenzok8/small|luci-app-passwall|my-passwall" 
           )
